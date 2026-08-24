@@ -1,0 +1,20 @@
+# Build output
+build/
+*.o
+*.out
+*.dSYM/
+
+# Web build output (emscripten)
+*.wasm
+*.data
+web/build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors
+.vscode/
+.idea/
+*.swp
