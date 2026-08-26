@@ -26,6 +26,7 @@
             bool hasHistory;
             Vector2 delayedData;
             bool delayedMoving;
+            bool clickedThisAgent;
             
             InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "CopyCat");
             std::vector<Agent> Agents{};
@@ -137,6 +138,21 @@
                         if(IsKeyDown(KEY_M) && agent.IsMimic== true)
                         {
                             DrawCircleV(agent.AgentPosition, 10.0, WHITE);
+                        }
+                        if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                        {
+                            clickedThisAgent = CheckCollisionPointCircle(GetMousePosition(), agent.AgentPosition, 25.0f);
+                            if(clickedThisAgent)
+                            {
+                                if(agent.IsMimic)
+                                {
+                                    DrawText("You Won!!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, GREEN);
+                                }
+                                else 
+                                {
+                                    DrawText("You Lose!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, RED);
+                                }
+                            }
                         }
                     }
                     DrawCircleV(position, 20.0f, RED);
