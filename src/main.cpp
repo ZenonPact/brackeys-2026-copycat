@@ -5,6 +5,12 @@
 
 
         enum class State {Idle, Walking, Mimicking};
+        enum class GameState {Playing, Won, Lost};
+        const Color Palette[] = {PURPLE,BLUE,GREEN,YELLOW,ORANGE,BROWN};
+        const int SIZE_OF_PALETTE = 6;
+        const int SCREEN_WIDTH = 960;
+        const int SCREEN_HEIGHT = 540;
+
         struct Agent
         {
             Vector2 AgentPosition;
@@ -16,10 +22,34 @@
             bool IsMimic;
         };
 
+        void ResetRound(std::vector<Agent> &agents, std::vector<Vector2> &playerRecordedDeltaPositions, GameState &gameState, Vector2 &playerPosition, int &currentRound)
+        {
+            int agentCount = 0;
+            agents.clear();
+            playerRecordedDeltaPositions.clear();
+            playerPosition = Vector2{SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f};
+            agentCount = currentRound + 5;
+            for(int i = 0; i < agentCount; i++)
+            {
+                Agent NewAgent =
+                {
+                    {(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0, SCREEN_HEIGHT)},
+                    Palette[GetRandomValue(0, SIZE_OF_PALETTE-1)],
+                    Vector2Clamp(Vector2{(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0, SCREEN_HEIGHT)}, Vector2{0.0f,0.0f}, Vector2{SCREEN_WIDTH, SCREEN_HEIGHT}),
+                    State::Walking,
+                    0.0f,
+                    0.0f,
+                    false
+                };
+                agents.push_back(NewAgent);
+            }
+
+            agents[GetRandomValue(0, agentCount-1)].IsMimic = true;
+            gameState = GameState::Playing;
+        }
+
         int main()
         {
-            const int SCREEN_WIDTH = 960;
-            const int SCREEN_HEIGHT = 540;
             std::vector<Vector2> PlayerRecordedDeltaPositions;
             Vector2 PlayerStartingPosition;
             Vector2 PlayerDeltaPosition;
@@ -27,136 +57,140 @@
             Vector2 delayedData;
             bool delayedMoving;
             bool clickedThisAgent;
+            int currentRound = 1;
             
             InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "CopyCat");
             std::vector<Agent> Agents{};
-            Color Palette[] = {PURPLE,BLUE,GREEN,YELLOW,ORANGE,BROWN};
-            for(Color& color : Palette)
-            {
-                Agent NewAgent =
-                {
-                    {(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0, SCREEN_HEIGHT)},
-                    color,
-                    Vector2Clamp(Vector2{(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0, SCREEN_HEIGHT)}, Vector2{0.0f,0.0f}, Vector2{SCREEN_WIDTH, SCREEN_HEIGHT}),
-                    State::Walking,
-                    0.0f,
-                    0.0f,
-                    false
-                };
-                Agents.push_back(NewAgent);
-            }
-
-            Agents[GetRandomValue(0, 5)].IsMimic = true;
+            GameState gameState;
 
             SetTargetFPS(60);
-            Vector2 position = Vector2{480.0f,270.0f};
+            Vector2 position;
             Vector2 direction = Vector2{0.0f,0.0f};
             float speed = 200.0f;
+            
+            ResetRound(Agents, PlayerRecordedDeltaPositions, gameState, position, currentRound);
 
             while(!WindowShouldClose())
             {
-                PlayerStartingPosition = position;
-                direction = Vector2{0.0,0.0};
-                
-                if(IsKeyDown(KEY_UP))
+                if(gameState == GameState::Playing)
                 {
-                    direction.y += -1;
-                }
-                if(IsKeyDown(KEY_DOWN))
-                {
-                    direction.y += 1;
-                }
-                if(IsKeyDown(KEY_RIGHT))
-                {
-                    direction.x += 1;
-                }
-                if(IsKeyDown(KEY_LEFT))
-                {
-                    direction.x += -1;
-                }
-                direction = Vector2Normalize(direction);
-                position = Vector2Add(position, Vector2Scale(direction, speed*GetFrameTime()));
-
-                PlayerDeltaPosition = Vector2Subtract(position, PlayerStartingPosition);
-                PlayerRecordedDeltaPositions.push_back(PlayerDeltaPosition);
-                hasHistory = PlayerRecordedDeltaPositions.size() >= 90;
-                delayedData = hasHistory ? PlayerRecordedDeltaPositions[PlayerRecordedDeltaPositions.size() - 90] : Vector2 {0,0};
-                delayedMoving = Vector2Length(delayedData) > 0.5f;
-
-                for (Agent& agent: Agents) 
+                    PlayerStartingPosition = position;
+                    direction = Vector2{0.0,0.0};
+                    
+                    if(IsKeyDown(KEY_UP))
                     {
-                        switch (agent.AgentState) 
+                        direction.y += -1;
+                    }
+                    if(IsKeyDown(KEY_DOWN))
+                    {
+                        direction.y += 1;
+                    }
+                    if(IsKeyDown(KEY_RIGHT))
+                    {
+                        direction.x += 1;
+                    }
+                    if(IsKeyDown(KEY_LEFT))
+                    {
+                        direction.x += -1;
+                    }
+                    direction = Vector2Normalize(direction);
+                    position = Vector2Add(position, Vector2Scale(direction, speed*GetFrameTime()));
+
+                    PlayerDeltaPosition = Vector2Subtract(position, PlayerStartingPosition);
+                    PlayerRecordedDeltaPositions.push_back(PlayerDeltaPosition);
+                    hasHistory = PlayerRecordedDeltaPositions.size() >= 90;
+                    delayedData = hasHistory ? PlayerRecordedDeltaPositions[PlayerRecordedDeltaPositions.size() - 90] : Vector2 {0,0};
+                    delayedMoving = Vector2Length(delayedData) > 0.5f;
+
+                    for (Agent& agent: Agents) 
                         {
-                            case State::Idle:
+                            switch (agent.AgentState) 
                             {
-                                agent.TimeStanding += GetFrameTime();
-                                if(agent.TimeStanding >= agent.PauseDuration)
+                                case State::Idle:
                                 {
-                                    agent.AgentState = State::Walking;
+                                    agent.TimeStanding += GetFrameTime();
+                                    if(agent.TimeStanding >= agent.PauseDuration)
+                                    {
+                                        agent.AgentState = State::Walking;
+                                    }
+                                    if(agent.IsMimic && delayedMoving)
+                                    {
+                                        agent.AgentState = State::Mimicking;
+                                    }
+                                    break;
                                 }
-                                if(agent.IsMimic && delayedMoving)
+                                case State::Walking:
                                 {
-                                    agent.AgentState = State::Mimicking;
+                                    Vector2 WalkingDirection = Vector2Normalize(Vector2Subtract(agent.TargetPosition, agent.AgentPosition));
+                                    agent.AgentPosition += Vector2Scale(WalkingDirection, GetFrameTime() * 130);
+                                    if(Vector2Distance(agent.AgentPosition, agent.TargetPosition)<= 5.0f)
+                                    {
+                                        agent.TimeStanding = 0.0f;
+                                        agent.TargetPosition = Vector2Clamp(agent.AgentPosition + Vector2{(float)GetRandomValue(-450, 450), (float)GetRandomValue(-250, 250)}, Vector2{0.0f,0.0f}, Vector2{SCREEN_WIDTH, SCREEN_HEIGHT});
+                                        agent.AgentState = State::Idle;
+                                        agent.PauseDuration = (float)GetRandomValue(6, 12)/10;
+                                    }
+                                    if(agent.IsMimic && delayedMoving)
+                                    {
+                                        agent.AgentState = State::Mimicking;
+                                    }
+                                    break;
                                 }
-                                break;
+                                case State::Mimicking:
+                                {
+                                    agent.AgentPosition += delayedData;
+                                    if(!delayedMoving)
+                                    {
+                                        agent.TimeStanding = 0.0f;
+                                        agent.AgentState = State::Idle;
+                                    }
+                                    break;
+                                }
                             }
-                            case State::Walking:
+                            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
                             {
-                                Vector2 WalkingDirection = Vector2Normalize(Vector2Subtract(agent.TargetPosition, agent.AgentPosition));
-                                agent.AgentPosition += Vector2Scale(WalkingDirection, GetFrameTime() * 130);
-                                if(Vector2Distance(agent.AgentPosition, agent.TargetPosition)<= 5.0f)
+                                clickedThisAgent = CheckCollisionPointCircle(GetMousePosition(), agent.AgentPosition, 25.0f);
+                                if(clickedThisAgent)
                                 {
-                                    agent.TimeStanding = 0.0f;
-                                    agent.TargetPosition = Vector2Clamp(agent.AgentPosition + Vector2{(float)GetRandomValue(-450, 450), (float)GetRandomValue(-250, 250)}, Vector2{0.0f,0.0f}, Vector2{SCREEN_WIDTH, SCREEN_HEIGHT});
-                                    agent.AgentState = State::Idle;
-                                    agent.PauseDuration = (float)GetRandomValue(6, 12)/10;
+                                    if(agent.IsMimic)
+                                    {
+                                        currentRound += 1;
+                                        //gameState = GameState::Won;
+                                        ResetRound(Agents, PlayerRecordedDeltaPositions, gameState, position, currentRound);
+                                    }
+                                    else 
+                                    {
+                                        gameState = GameState::Lost;
+                                    }
                                 }
-                                if(agent.IsMimic && delayedMoving)
-                                {
-                                    agent.AgentState = State::Mimicking;
-                                }
-                                break;
-                            }
-                            case State::Mimicking:
-                            {
-                                agent.AgentPosition += delayedData;
-                                if(!delayedMoving)
-                                {
-                                    agent.TimeStanding = 0.0f;
-                                    agent.AgentState = State::Idle;
-                                }
-                                break;
                             }
                         }
+                }
+                else 
+                {
+                    if(IsKeyPressed(KEY_R))
+                    {   
+                        currentRound = 1;
+                        ResetRound(Agents, PlayerRecordedDeltaPositions, gameState, position, currentRound);
                     }
+                }
 
                 BeginDrawing();
                     ClearBackground(LIGHTGRAY);
                     for (Agent& agent: Agents) 
                     {
                         DrawCircleV(agent.AgentPosition, 20.0f, agent.AgentColor);
-                        if(IsKeyDown(KEY_M) && agent.IsMimic== true)
-                        {
-                            DrawCircleV(agent.AgentPosition, 10.0, WHITE);
-                        }
-                        if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-                        {
-                            clickedThisAgent = CheckCollisionPointCircle(GetMousePosition(), agent.AgentPosition, 25.0f);
-                            if(clickedThisAgent)
-                            {
-                                if(agent.IsMimic)
-                                {
-                                    DrawText("You Won!!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, GREEN);
-                                }
-                                else 
-                                {
-                                    DrawText("You Lose!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, RED);
-                                }
-                            }
-                        }
+                    }
+                    //if(gameState == GameState::Won)
+                        //{
+                            //DrawText("You Won!!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, GREEN);
+                        //}
+                    if(gameState == GameState::Lost)
+                    {
+                        DrawText("You lose, press R to reset", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, RED);
                     }
                     DrawCircleV(position, 20.0f, RED);
-                    DrawText("Trust No One", 0, 0, 48, BLACK);
+                    DrawText(TextFormat("Round %d", currentRound), 12, 12, 48, BLACK);
                 EndDrawing();
             }
 
