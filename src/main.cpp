@@ -7,7 +7,7 @@
 
 
         enum class State {Idle, Walking, Mimicking};
-        enum class GameState {Playing, Won, Lost};
+        enum class GameState {Playing, Won, Lost, Title};
         const Color PALETTE[] = {PURPLE,BLUE,GREEN,YELLOW,ORANGE,BROWN};
         const char* PALETTE_NAMES [] = {"purple", "blue", "green", "yellow", "orange", "brown"};
         const int SIZE_OF_PALETTE = 6;
@@ -62,12 +62,20 @@
             }
             else
             {
-               int lieIndex = (agents[mimicAgentIndex].ColorIndex + GetRandomValue(1, SIZE_OF_PALETTE-1)) % SIZE_OF_PALETTE;
-               hint = TextFormat("The color of the liar is %s", PALETTE_NAMES[lieIndex]);
+            int lieIndex = (agents[mimicAgentIndex].ColorIndex + GetRandomValue(1, SIZE_OF_PALETTE-1)) % SIZE_OF_PALETTE;
+            hint = TextFormat("The color of the liar is %s", PALETTE_NAMES[lieIndex]);
             }
             gameState = GameState::Playing;
         }
 
+        void DrawGuy(Vector2 position, Color color)
+        {
+            DrawCircleV(position, 20.0f, color);
+            DrawCircleV({position.x + 7, position.y - 5}, 6.0f, WHITE);
+            DrawCircleV({position.x - 7, position.y - 5}, 6.0f, WHITE);
+            DrawCircleV({position.x + 7, position.y - 5}, 3.0f, BLACK);
+            DrawCircleV({position.x - 7, position.y - 5}, 3.0f, BLACK);
+        }
         int main()
         {
             std::vector<Vector2> playerRecordedDeltaPositions;
@@ -88,13 +96,14 @@
             Vector2 position;
             Vector2 direction = Vector2{0.0f,0.0f};
             float speed = 200.0f;
-            
-            ResetRound(agents, playerRecordedDeltaPositions, gameState, position, currentRound, hint);
+
+            gameState = GameState::Title;
 
             InitAudioDevice();
             Sound sfxHint =  LoadSound("assets/blipSelect.wav");
             Sound sfxWrong =  LoadSound("assets/hitHurt.wav");
             Sound sfxClear =  LoadSound("assets/powerUp.wav");
+            Sound sfxRestart =  LoadSound("assets/restart.wav");
 
             while(!WindowShouldClose())
             {
@@ -103,19 +112,19 @@
                     playerStartingPosition = position;
                     direction = Vector2{0.0,0.0};
                     
-                    if(IsKeyDown(KEY_UP))
+                    if(IsKeyDown(KEY_W))
                     {
                         direction.y += -1;
                     }
-                    if(IsKeyDown(KEY_DOWN))
+                    if(IsKeyDown(KEY_S))
                     {
                         direction.y += 1;
                     }
-                    if(IsKeyDown(KEY_RIGHT))
+                    if(IsKeyDown(KEY_D))
                     {
                         direction.x += 1;
                     }
-                    if(IsKeyDown(KEY_LEFT))
+                    if(IsKeyDown(KEY_A))
                     {
                         direction.x += -1;
                     }
@@ -124,8 +133,8 @@
 
                     playerDeltaPosition = Vector2Subtract(position, playerStartingPosition);
                     playerRecordedDeltaPositions.push_back(playerDeltaPosition);
-                    hasHistory = playerRecordedDeltaPositions.size() >= 90;
-                    delayedData = hasHistory ? playerRecordedDeltaPositions[playerRecordedDeltaPositions.size() - 90] : Vector2 {0,0};
+                    hasHistory = playerRecordedDeltaPositions.size() >= 150;
+                    delayedData = hasHistory ? playerRecordedDeltaPositions[playerRecordedDeltaPositions.size() - 150] : Vector2 {0,0};
                     delayedMoving = Vector2Length(delayedData) > 0.5f;
 
                     for (Agent& agent: agents) 
@@ -192,42 +201,62 @@
                                 }
                             }
                         }
+                    BeginDrawing();
+                        ClearBackground(LIGHTGRAY);
+                        for (Agent& agent: agents) 
+                        {
+                            DrawGuy(agent.AgentPosition, agent.AgentColor);
+                        }
+                        DrawGuy(position, RED);
+                        DrawRectangle(position.x - 40/2.0f, position.y -20, 40 , 10, BLACK);
+                        DrawRectangle(position.x - 30/2.0f, position.y -35, 30 , 15, BLACK);
+                        DrawRectangle(position.x - 7, position.y + 4, 14 , 5, BLACK);
+                        // DrawRectangle(position.x - 8, position.y + 10, 16 , 2, BLACK);
+                        DrawRing({position.x + 7, position.y - 5}, 6, 9, 0, 360, 32, BLACK);
+                        //DrawRing({position.x, position.y +6}, 8, 10, 0, 180, 16, BLACK);
+                        DrawText(TextFormat("Round %d", currentRound), 12, 12, 48, BLACK);
+                        DrawText("Keep pressing H for hint:", 12, SCREEN_HEIGHT - 48 , 24, BLACK);
+                        if(IsKeyDown(KEY_H))
+                        {
+                            DrawRectangleLines(SCREEN_WIDTH - 34 - MeasureText(hint.c_str(),24), SCREEN_HEIGHT - 53, MeasureText(hint.c_str(), 24) + 30, 34, BLACK);
+                            DrawText(hint.c_str(), SCREEN_WIDTH - 24 - MeasureText(hint.c_str(), 24), SCREEN_HEIGHT - 48  , 24, WHITE);
+                        }
+                        if(IsKeyPressed(KEY_H))
+                        {
+                            PlaySound(sfxHint);
+                        }
+                    EndDrawing();   
                 }
-                else 
+                else if (gameState == GameState::Lost)
                 {
                     if(IsKeyPressed(KEY_R))
                     {   
                         currentRound = 1;
+                        PlaySound(sfxRestart);
                         ResetRound(agents, playerRecordedDeltaPositions, gameState, position, currentRound, hint);
                     }
+                    BeginDrawing();
+                        ClearBackground(LIGHTGRAY);
+                        DrawText("You lose, press R to reset", SCREEN_WIDTH/2.0 - MeasureText("You lose, press R to reset", 48)/2.0f, SCREEN_HEIGHT/2.0f - 48/2.0f, 48, RED);
+                    EndDrawing();
                 }
+                else if (gameState == GameState::Title)
+                {
+                    if (IsKeyPressed(KEY_SPACE)) 
+                    {
+                        PlaySound(sfxRestart);
+                        ResetRound(agents, playerRecordedDeltaPositions, gameState, position, currentRound, hint);
+                    }                    
+                    BeginDrawing();
+                        ClearBackground(LIGHTGRAY);
+                        //TextFormat("COPYCAT \n", "Press WASD to move \n", "Find the CopyCat \n", "SPACE to start");
+                        DrawText("COPYCAT", SCREEN_WIDTH/2.0 - MeasureText("COPYCAT", 64)/2.0f, SCREEN_HEIGHT/2.0 - 64/2.0f, 64.0f, BLACK);
+                        DrawText("Press WASD to Move", SCREEN_WIDTH/2.0 - MeasureText("Press WASD to Move", 32)/2.0f, SCREEN_HEIGHT/2.0 + 80 - 32/2.0f, 32.0f, BLACK);
+                        DrawText("Left Click to accuse the Copycat", SCREEN_WIDTH/2.0 - MeasureText("Left Click to accuse the Copycat", 32)/2.0f, SCREEN_HEIGHT/2.0 + 120 - 32/2.0f, 32.0f, BLACK);
+                        DrawText("Press SPACE to Start", SCREEN_WIDTH/2.0 - MeasureText("Press SPACE to Start", 32)/2.0f, SCREEN_HEIGHT/2.0 + 160 - 32/2.0f, 32.0f, BLACK);
+                        EndDrawing();
 
-                BeginDrawing();
-                    ClearBackground(LIGHTGRAY);
-                    for (Agent& agent: agents) 
-                    {
-                        DrawCircleV(agent.AgentPosition, 20.0f, agent.AgentColor);
-                    }
-                    //if(gameState == GameState::Won)
-                        //{
-                            //DrawText("You Won!!", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 48, GREEN);
-                        //}
-                    if(gameState == GameState::Lost)
-                    {
-                        DrawText("You lose, press R to reset", SCREEN_WIDTH/5.0f, SCREEN_HEIGHT/2.0f, 48, RED);
-                    }
-                    DrawCircleV(position, 20.0f, RED);
-                    DrawText(TextFormat("Round %d", currentRound), 12, 12, 48, BLACK);
-                    DrawText("Keep pressing H for hint", 12, SCREEN_HEIGHT - 48 , 24, BLACK);
-                    if(IsKeyDown(KEY_H))
-                    {
-                        DrawText(hint.c_str(), SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f , 24, BLACK);
-                    }
-                    if(IsKeyPressed(KEY_H))
-                    {
-                        PlaySound(sfxHint);
-                    }
-                EndDrawing();
+                }
             }
 
             CloseWindow();
