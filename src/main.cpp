@@ -26,6 +26,7 @@
             float PauseDuration;
             bool IsMimic;
             int ColorIndex;
+            Vector2 noise;
         };
 
         void ResetRound(std::vector<Agent> &agents, std::vector<Vector2> &playerRecordedDeltaPositions, GameState &gameState, Vector2 &playerPosition, int &currentRound, std::string &hint)
@@ -50,7 +51,8 @@
                     0.0f,
                     0.0f,
                     false,
-                    generatedColorIndex
+                    generatedColorIndex,
+                    {0,0}
                 };
                 agents.push_back(newAgent);
             }
@@ -173,7 +175,10 @@
                                 }
                                 case State::Mimicking:
                                 {
-                                    agent.AgentPosition = Vector2Clamp(agent.AgentPosition + delayedData, ROOM_MIN, ROOM_MAX);
+                                    agent.noise = Vector2Scale(agent.noise, 0.9f);
+                                    agent.noise += {GetRandomValue(-15, 15)/100.0f,GetRandomValue(-15, 15)/100.0f };
+                                    agent.noise = Vector2ClampValue(agent.noise, 0, 1.2f);
+                                    agent.AgentPosition = Vector2Clamp(agent.AgentPosition + delayedData + agent.noise, ROOM_MIN, ROOM_MAX);
                                     if(!delayedMoving)
                                     {
                                         agent.TimeStanding = 0.0f;
