@@ -1,6 +1,7 @@
         #include "raylib.h"
         #include "raymath.h"
         #include <algorithm>
+#include <cstdio>
         #include <string>
         #include <vector>
 
@@ -196,7 +197,9 @@
                                     {
                                         currentRound += 1;
                                         PlaySound(sfxClear);
+                                        printf("round %d  before: cap=%zu data=%p\n", currentRound, agents.capacity(), (void*)agents.data());
                                         ResetRound(agents, playerRecordedDeltaPositions, gameState, position, currentRound, hint);
+                                        printf("round %d  after:  cap=%zu data=%p\n", currentRound, agents.capacity(), (void*)agents.data());
                                     }
                                     else 
                                     {
